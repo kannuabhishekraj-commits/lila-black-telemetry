@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LILA BLACK - Match Data</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: white; text-align: center; }
+        #map-container { position: relative; width: 1024px; height: 1024px; margin: 20px auto; border: 2px solid #444; }
+        /* The minimap image acts as the background */
+        #minimap-img { position: absolute; top: 0; left: 0; width: 1024px; height: 1024px; }
+        /* The canvas sits directly on top of the image so we can draw on it */
+        canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .controls { margin-top: 20px; }
+        select { padding: 10px; font-size: 16px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>LILA BLACK - Player Telemetry</h1>
+    
+    <div class="controls">
+        <label for="map-select">Choose Map: </label>
+        <select id="map-select">
+            <option value="AmbroseValley">Ambrose Valley</option>
+            <option value="GrandRift">Grand Rift</option>
+            <option value="Lockdown">Lockdown</option>
+        </select>
+    </div>
+
+    <div id="map-container">
+        <img id="minimap-img" src="player_data/minimaps/AmbroseValley_Minimap.png" alt="Minimap">
+        <canvas id="drawing-layer" width="1024" height="1024"></canvas>
+    </div>
+
+    <script>
+        const mapSelect = document.getElementById('map-select');
+        const mapImg = document.getElementById('minimap-img');
+        const canvas = document.getElementById('drawing-layer');
+        const ctx = canvas.getContext('2d');
+        let telemetryData = [];
+
+        // Exact file names from the minimaps folder
+        const mapImageFiles = {
+            'AmbroseValley': 'player_data/minimaps/AmbroseValley_Minimap.png',
+            'GrandRift': 'player_data/minimaps/GrandRift_Minimap.png',
+            'Lockdown': 'player_data/minimaps/Lockdown_Minimap.jpg' // Notice Lockdown is a .jpg!
+        };
+
+        // 1. Fetch the JSON data we generated
+        fetch('map_data.json')
+            .then(response => response.json())
+            .then(data => {
+                telemetryData = data;
+                drawEvents(); // Draw the dots once data is loaded
+            })
+            .catch(err => console.error("Error loading JSON. Are you running a local server?", err));
+
+        // Redraw when the user changes the map dropdown
+        mapSelect.addEventListener('change', drawEvents);
+
+        function drawEvents() {
+            const selectedMap = mapSelect.value;
+            
+            // Change the background image to match the selected map
+            mapImg.src = mapImageFiles[selectedMap];
+
+            // Clear the canvas from previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Filter our 1000 events to ONLY show events for the currently selected map
+            const eventsOnThisMap = telemetryData.filter(event => event.map === selectedMap);
+
+            // Draw a dot for every event
+            eventsOnThisMap.forEach(event => {
+                ctx.beginPath();
+                ctx.arc(event.minimap_x, event.minimap_y, 4, 0, 2 * Math.PI);
+
+                // Color coding based on event type
+                if (event.event.includes('Kill') || event.event.includes('Killed')) {
+                    ctx.fillStyle = '#ff4444'; // Red for combat
+                } else if (event.event === 'Loot') {
+                    ctx.fillStyle = '#ffbb33'; // Gold for loot
+                } else {
+                    ctx.fillStyle = '#33b5e5'; // Blue for movement/position
+                }
+
+                ctx.fill();
+            });
+        }
+    </script>
+</body>
+</html>
